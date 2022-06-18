@@ -1,0 +1,20 @@
+Manifest-Version: 1.0
+Automatic-Module-Name: org.eclipse.prettyconsole
+Bundle-ManifestVersion: 2
+Bundle-Name: Pretty Console
+Bundle-SymbolicName: org.eclipse.prettyconsole;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: org.eclipse.prettyconsole.PrettyConsoleActivator
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.ui.console,
+ org.eclipse.jface.text,
+ org.eclipse.m2e.launching,
+ org.eclipse.debug.core
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Export-Package: org.eclipse.prettyconsole,
+ org.eclipse.prettyconsole.commands,
+ org.eclipse.prettyconsole.participants,
+ org.eclipse.prettyconsole.preferences,
+ org.eclipse.prettyconsole.utils

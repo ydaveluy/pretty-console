@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.eclipse.prettyconsole.feature"
+      label="Pretty Console Feature"
+      version="1.0.0.qualifier">
+
+   <description url="https://github.com/ydaveluy/pretty-console">
+      This Eclipse plugin interprets the ANSI escape sequences to color
+the console output.
+It works for output text with escape sequences directly from
+Java, Groovy, C/C++, Perl, Python,
+or any other Eclipse hosted language that outputs text to the
+standard output or standard error.
+Supports 16 colors / 256 colors / true-colors for foreground
+and background, color palettes.
+Attributes like bold, italic, underline, invert, conceal, strike,
+framed.
+Unfortunately nothing that changes the content of the output
+(erase actions), or cursor positioning,
+because of the way the Eclipse console works.
+See https://github.com/ydaveluy/pretty-console/wiki
+Standard ANSI escape codes: https://en.wikipedia.org/wiki/ANSI_escape_code
+And it is open source: https://github.com/ydaveluy/pretty-console
+That&apos;s where you can file a bug, ask for a feature, contribute
+a fix, or just say hi.
+   </description>
+
+   <license url="https://www.eclipse.org/legal/epl-2.0/">
+      Licensed under the EPL License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+
+You may obtain a copy of the License at
+  https://www.eclipse.org/legal/epl-2.0/
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+   </license>
+
+   <url>
+      <update label="Pretty Console for Eclipse" url="https://daveluy.jfrog.io/artifactory/pretty-console/"/>
+   </url>
+
+   <requires>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.ui.console"/>
+      <import plugin="org.eclipse.jface.text"/>
+   </requires>
+
+   <plugin
+         id="org.eclipse.prettyconsole"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.prettyconsole.source"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+</feature>

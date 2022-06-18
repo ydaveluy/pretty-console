@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+<extension point="org.eclipse.ui.preferencePages">
+	<page
+       class="org.eclipse.prettyconsole.preferences.PreferencePage"
+       id="org.eclipse.prettyconsole.preferences.PreferencePage"
+       name="Pretty Console">
+ </page>
+</extension>
+
+<extension point="org.eclipse.core.runtime.preferences">
+	<initializer class="org.eclipse.prettyconsole.preferences.PreferenceInitializer" />
+</extension>
+
+<extension point="org.eclipse.ui.console.consolePageParticipants">
+	<consolePageParticipant class="org.eclipse.prettyconsole.participants.PageParticipant" id="org.eclipse.prettyconsole.participants.PageParticipant">
+		<enablement>
+			<instanceof value="org.eclipse.ui.console.IConsole" />
+		</enablement>
+	</consolePageParticipant>
+</extension>
+
+<extension
+		point="org.eclipse.ui.commands">
+	<category
+			 id="PrettyConsole.command.categoryid"
+			 name="Pretty Console Commands">
+	</category>
+	<command
+			categoryId="PrettyConsole.command.categoryid"
+			defaultHandler="org.eclipse.prettyconsole.commands.CopyWithEscapesHandler"
+			description="Copy the console content to clipboard, including the escape sequences"
+			id="PrettyConsole.command.copy_with_escapes"
+			name="Copy text with escapes">
+	</command>
+	<command
+			categoryId="PrettyConsole.command.categoryid"
+			defaultHandler="org.eclipse.prettyconsole.commands.CopyWithoutEscapesHandler"
+			description="Copy the console content to clipboard, removing the escape sequences"
+			id="PrettyConsole.command.copy_without_escapes"
+			name="Copy text without escapes">
+	</command>
+	<command
+			categoryId="PrettyConsole.command.categoryid"
+			defaultHandler="org.eclipse.prettyconsole.commands.EnableDisableHandler"
+			description="Enable / disable Pretty Console"
+			id="PrettyConsole.command.enable_disable"
+			name="Enable / Disable Pretty Console">
+		<state
+				class="org.eclipse.ui.handlers.RegistryToggleState:true"
+				id="org.eclipse.ui.commands.toggleState">
+		</state>
+	</command>
+	<command
+			categoryId="PrettyConsole.command.categoryid"
+			defaultHandler="org.eclipse.prettyconsole.commands.ShowQuickPrefsHandler"
+			description="Show the preferences for Pretty Console and the generic console"
+			id="PrettyConsole.command.show_quick_settings"
+			name="Show Console preferences">
+	</command>
+</extension>
+
+<extension
+		point="org.eclipse.ui.menus">
+	<menuContribution
+			allPopups="false"
+			locationURI="toolbar:org.eclipse.ui.console.ConsoleView">
+		<command
+				commandId="PrettyConsole.command.copy_with_escapes"
+				icon="icons/prettyconsolecopy.png"
+				style="push">
+		</command>
+		<command
+				commandId="PrettyConsole.command.enable_disable"
+				icon="icons/prettyconsole.png"
+				style="toggle">
+		</command>
+		<command
+				commandId="PrettyConsole.command.show_quick_settings"
+				icon="icons/prettyconsoleprefs.png"
+				style="push">
+		</command>
+	</menuContribution>
+</extension>
+<extension
+      point="org.eclipse.ui.bindings">
+   <key
+         commandId="PrettyConsole.command.copy_without_escapes"
+         contextId="org.eclipse.ui.console.ConsoleView"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+         sequence="M1+C">
+   </key>
+   <key
+         commandId="PrettyConsole.command.copy_without_escapes"
+         contextId="org.eclipse.ui.console.ConsoleView"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+         sequence="M1+Insert">
+   </key>
+   <key
+         commandId="PrettyConsole.command.copy_with_escapes"
+         contextId="org.eclipse.ui.console.ConsoleView"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+         sequence="M1+M3+C">
+   </key>
+   <key
+         commandId="PrettyConsole.command.copy_with_escapes"
+         contextId="org.eclipse.ui.console.ConsoleView"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+         sequence="M1+M3+Insert">
+   </key>
+</extension>
+
+<extension
+      point="org.eclipse.m2e.launching.mavenLaunchParticipants">
+   <mavenLaunchParticipant
+         class="org.eclipse.prettyconsole.participants.MavenLaunchParticipant"
+         id="org.eclipse.prettyconsole.participants.MavenLaunchParticipant"
+         modes="run,debug"
+         name="Force Maven colored output">
+   </mavenLaunchParticipant>
+</extension>
+
+</plugin>
