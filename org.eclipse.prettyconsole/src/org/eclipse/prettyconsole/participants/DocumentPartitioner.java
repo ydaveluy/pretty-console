@@ -121,10 +121,7 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			return;
 		}
 
-		// sometime an incomplete escape sequence is at the end of text.
-		// In such case, store the incomplete sequence and remove it from the
-		// text.
-		// Reuse the incomplete sequence to process the next text
+		// Reuse the incomplete escape sequence if any
 		if (!incompleteEscapeSequence.isEmpty()) {
 			text = incompleteEscapeSequence + text;
 			offset -= incompleteEscapeSequence.length();
@@ -148,13 +145,12 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			}
 			final String group = matcher.group();
 
-			// store the incomplete escape sequence if any
+			// save the incomplete escape sequence if any
 			if (matcher.hitEnd()) {
 				incompleteEscapeSequence = group;
 				return;
 			}
 
-			// complete escape sequence
 			// add a position to hide the escape code
 			positions.add(new EscapeCodePosition(mstart + offset, group.length()));
 
@@ -218,41 +214,29 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		// adapt existing positions (we are interested only by remove events)
 		else if (event.getOffset() == 0) {
 
-			final int fLength = event.getLength();
+			final int length = event.getLength();
 
 			// remove all the starting positions
-			positions.removeIf(p -> p.offset + p.length < fLength);
+			positions.removeIf(p -> p.offset + p.length < length);
 
-			if (fLength > 0) {
+			if (length > 0) {
 
-				final int yoursEnd = fLength - 1;
 				// update remaining positions
-				positions.parallelStream().forEach(position -> {
+				positions.parallelStream().forEach(p -> {
 
-					final int myEnd = position.offset + position.length - 1;
-
-					if (position.offset <= 0) {
-
-						if (yoursEnd <= myEnd) {
-							position.length -= fLength;
-						} else {
-							position.length -= myEnd + 1;
-						}
-
-					} else if (yoursEnd < position.offset) {
-						position.offset -= fLength;
+					if (p.offset > length) {
+						// position after removed region
+						// position: _________PPPPP
+						// remove : xxxx
+						// result : _____PPPPP
+						p.offset -= length;
 					} else {
-						position.offset -= position.offset;
-						position.length -= fLength - position.offset;
-					}
-
-					// validate position to allowed values
-					if (position.offset < 0) {
-						position.offset = 0;
-					}
-
-					if (position.length < 0) {
-						position.length = 0;
+						// position overlap with removed region
+						// position: __PPPPP__
+						// remove : xxxx
+						// result : PPP__
+						p.length -= length - p.offset;
+						p.offset = 0;
 					}
 				});
 			}
