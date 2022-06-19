@@ -8,7 +8,6 @@ import java.util.regex.Matcher;
 import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IDocumentPartitioner;
-import org.eclipse.jface.text.IPositionUpdater;
 import org.eclipse.jface.text.ITypedRegion;
 import org.eclipse.prettyconsole.PrettyConsoleUtils;
 import org.eclipse.prettyconsole.preferences.PreferenceUtils;
@@ -17,7 +16,7 @@ import org.eclipse.swt.custom.LineStyleEvent;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 
-public class DocumentPartitioner implements IDocumentPartitioner, IPositionUpdater {
+public class DocumentPartitioner implements IDocumentPartitioner {
 
 	// store the last processed attributes
 	private StyleAttribute attributes = StyleAttribute.DEFAULT;
@@ -145,8 +144,6 @@ public class DocumentPartitioner implements IDocumentPartitioner, IPositionUpdat
 			// add this position only if the attributes is of interest (different from
 			// default)
 			if (attributes != StyleAttribute.DEFAULT && mstart > start) {
-				// document.addPosition(PARTITION_NAME,
-				// new StyledPosition(start + offset, mstart - start, attributes));
 				positions.add(new StyledPosition(start + offset, mstart - start, attributes));
 			}
 			final String group = matcher.group();
@@ -285,50 +282,6 @@ public class DocumentPartitioner implements IDocumentPartitioner, IPositionUpdat
 	@Override
 	public ITypedRegion getPartition(int offset) {
 		return null;
-	}
-
-	@Override
-	public void update(DocumentEvent event) {
-
-		final int fLength = event.getLength();
-
-		if (fLength > 0) {
-
-			// remove all the starting positions
-			positions.removeIf(p -> p.offset + p.length < fLength);
-
-			final int yoursEnd = fLength - 1;
-			// update remaining positions
-			positions.parallelStream().forEach(position -> {
-
-				final int myEnd = position.offset + position.length - 1;
-
-				if (position.offset <= 0) {
-
-					if (yoursEnd <= myEnd) {
-						position.length -= fLength;
-					} else {
-						position.length -= myEnd + 1;
-					}
-
-				} else if (yoursEnd < position.offset) {
-					position.offset -= fLength;
-				} else {
-					position.offset -= position.offset;
-					position.length -= fLength - position.offset;
-				}
-
-				// validate position to allowed values
-				if (position.offset < 0) {
-					position.offset = 0;
-				}
-
-				if (position.length < 0) {
-					position.length = 0;
-				}
-			});
-
-		}
 	}
 
 }
