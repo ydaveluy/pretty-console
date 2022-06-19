@@ -123,8 +123,6 @@ public class StyleAttribute {
 	// etc.)
 	public static void updateRangeStyle(StyleRange range, final StyleAttribute attribute) {
 
-		final int style = attribute.style;
-
 		// update the foreground color
 		if (attribute.foreground != null) {
 			range.foreground = ColorPalette.getColor(attribute.foreground);
@@ -135,33 +133,34 @@ public class StyleAttribute {
 			range.background = ColorPalette.getColor(attribute.background);
 		}
 
-		if ((style & INVERT) != 0) {
+		if ((attribute.style & INVERT) != 0) {
 			// swap background/foreground
 			final Color tmp = range.background;
 			range.background = range.foreground;
 			range.foreground = tmp;
 		}
 
-		if ((style & CONCEAL) != 0) {
+		if ((attribute.style & CONCEAL) != 0) {
 			range.foreground = range.background;
 		}
 
 		range.font = null;
-		range.fontStyle = style & FONT_STYLE_MASK;
+		range.fontStyle = attribute.style & FONT_STYLE_MASK;
 
 		// Prepare the rest of the attributes
-		if ((style & UNDERLINE_STYLE_MASK) != 0) {
+		if ((attribute.style & UNDERLINE_STYLE_MASK) != 0) {
 			range.underline = true;
 			range.underlineColor = range.foreground;
-			range.underlineStyle = (style & UNDERLINE_DOUBLE) != 0 ? SWT.UNDERLINE_DOUBLE : SWT.UNDERLINE_SINGLE;
+			range.underlineStyle = (attribute.style & UNDERLINE_DOUBLE) != 0 ? SWT.UNDERLINE_DOUBLE
+					: SWT.UNDERLINE_SINGLE;
 		}
 
-		range.strikeout = (style & STRIKETHROUGH) != 0;
+		range.strikeout = (attribute.style & STRIKETHROUGH) != 0;
 		if (range.strikeout) {
 			range.strikeoutColor = range.foreground;
 		}
 
-		if ((style & SWT.BORDER) != 0) {
+		if ((attribute.style & SWT.BORDER) != 0) {
 			range.borderStyle = SWT.BORDER_SOLID;
 			range.borderColor = range.foreground;
 		}

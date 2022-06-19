@@ -56,7 +56,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			return;
 		}
 
-		styles.clear();
 		// keep existing styles if any
 		if (event.styles != null) {
 			Collections.addAll(styles, event.styles);
@@ -126,6 +125,8 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		if (found) {
 			event.styles = styles.toArray(new StyleRange[0]);
 		}
+
+		styles.clear();
 	}
 
 	private void updatePositionCache() {
@@ -156,19 +157,21 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		matcher.reset(text);
 		try {
 
-			int escapeOffet = 0;
+			int start = 0;
+
 			// find all escapes codes in the appended text and compute the new positions
 			while (matcher.find()) {
-				final int start = matcher.start();
-				final String group = matcher.group();
+				final int mstart = matcher.start();
+
 				// add a position between two escape codes (or from the beginning to an escape
 				// code)
 				// add this position only if the attributes is of interest (different from
 				// default)
-				if (attributes != StyleAttribute.DEFAULT && start > escapeOffet) {
+				if (attributes != StyleAttribute.DEFAULT && mstart > start) {
 					document.addPosition(PARTITION_NAME,
-							new StyledPosition(escapeOffet + offset, start - escapeOffet, attributes));
+							new StyledPosition(start + offset, mstart - start, attributes));
 				}
+				final String group = matcher.group();
 
 				// store the incomplete escape sequence if any
 				if (matcher.hitEnd()) {
@@ -178,21 +181,21 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 				// complete escape sequence
 				// add a position to hide the escape code
-				document.addPosition(PARTITION_NAME, new EscapeCodePosition(start + offset, group.length()));
+				document.addPosition(PARTITION_NAME, new EscapeCodePosition(mstart + offset, group.length()));
 
 				// update the attributes
 				attributes = attributes.apply(group);
 
-				// update the offset
-				escapeOffet = matcher.end();
+				// update the start offset
+				start = matcher.end();
 			}
 
 			// add a position between the last escape code (or from the beginning) and the
 			// end of the appended text
 			// add this position only if the attribute is of interest
-			if (attributes != StyleAttribute.DEFAULT && text.length() > escapeOffet) {
+			if (attributes != StyleAttribute.DEFAULT && text.length() > start) {
 				document.addPosition(PARTITION_NAME,
-						new StyledPosition(escapeOffet + offset, text.length() - escapeOffet, attributes));
+						new StyledPosition(start + offset, text.length() - start, attributes));
 			}
 
 		} catch (BadPositionCategoryException | BadLocationException e) {

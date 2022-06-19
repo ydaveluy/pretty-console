@@ -6,7 +6,7 @@ public class PrettyConsoleUtils {
 
 	// match full escape sequence and incomplete escape sequence at the end
 	public static final Pattern ESCAPE_SEQUENCE_REGEX_TXT = Pattern
-			.compile("\u001b(?:\\[[\\d;]*[A-HJKSTfimnsu]|(\\[[\\d;]*)?\\z)");
+			.compile("\u001b(?:\\[[\\d;]*[A-HJKSTfimnsu]|(?:(?:\\[[\\d;]*)?\\z))");
 
 	public static final Pattern ESCAPE_SEQUENCE_REGEX_RTF = Pattern
 			.compile("\\{\\\\cf\\d+[^}]* \u001b\\[[\\d;]*[A-HJKSTfimnsu][^}]*\\}");

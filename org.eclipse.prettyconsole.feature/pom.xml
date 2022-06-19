@@ -7,8 +7,8 @@
 		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>org.eclipse.prettyconsole</artifactId>
-	<packaging>eclipse-plugin</packaging>
+	<artifactId>org.eclipse.prettyconsole.feature</artifactId>
+	<packaging>eclipse-feature</packaging>
 
 
 </project>

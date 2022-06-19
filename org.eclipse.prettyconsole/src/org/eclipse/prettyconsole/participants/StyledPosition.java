@@ -42,9 +42,9 @@ public class StyledPosition extends AbstractStyledPosition {
 	public boolean equals(Object other) {
 		if (other instanceof StyledPosition) {
 			final StyledPosition rp = (StyledPosition) other;
-			return rp.attributes == attributes && super.equals(other);
+			return attributes.equals(rp.attributes) && super.equals(other);
 		}
-		return super.equals(other);
+		return false;
 	}
 
 	@Override
