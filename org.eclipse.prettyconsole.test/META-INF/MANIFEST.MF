@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Automatic-Module-Name: org.eclipse.prettyconsole.test
+Bundle-ManifestVersion: 2
+Bundle-Name: Pretty Console Test
+Bundle-SymbolicName: org.eclipse.prettyconsole.test;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Require-Bundle: org.eclipse.prettyconsole;bundle-version="1.0.0",
+ org.junit,
+ org.junit.jupiter.api
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8

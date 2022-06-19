@@ -33,8 +33,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	private StyleAttribute attributes = StyleAttribute.DEFAULT;
 	// the matcher used to find escape sequences
 	private final Matcher matcher = PrettyConsoleUtils.ESCAPE_SEQUENCE_REGEX_TXT.matcher("");
-	// the matcher used to find incomplete escape sequences
-	private final Matcher endMatcher = PrettyConsoleUtils.INCOMPLETE_ESCAPE_SEQUENCE_REGEX_TXT.matcher("");
 	// the last incomplete escape sequence
 	private String incompleteEscapeSequence = "";
 
@@ -48,6 +46,9 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	// cache the document positions
 	private Position[] positions = {};
 
+	// Style list
+	final List<StyleRange> styles = new ArrayList<>();
+
 	public void updateEventStyles(LineStyleEvent event, Color foregroundColor, Color backgroundColor) {
 
 		// no position means nothing to do
@@ -55,43 +56,14 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			return;
 		}
 
-		final List<StyleRange> styles = new ArrayList<>(4);
-
+		styles.clear();
 		// keep existing styles if any
 		if (event.styles != null) {
 			Collections.addAll(styles, event.styles);
 		}
 
 		// filters all the positions that overlap with the current event line
-		final int offset = event.lineOffset;
-		final int length = event.lineText.length();
 
-		final int rangeEnd = offset + length;
-
-		int index = findFirstOverlappigPosition(event);
-		Position position = positions[index];
-		boolean found = false;
-
-		// process positions that overlap with the current line
-		while (index < positions.length && position.getOffset() < rangeEnd) {
-
-			((AbstractStyledPosition) position).overrideStyleRange(styles, offset, length, foregroundColor,
-					backgroundColor);
-
-			found = true;
-			index++;
-			if (index < positions.length) {
-				position = positions[index];
-			}
-		}
-
-		// update event styles if found an overlapping position
-		if (found) {
-			event.styles = styles.toArray(new StyleRange[styles.size()]);
-		}
-	}
-
-	private int findFirstOverlappigPosition(LineStyleEvent event) {
 		final int offset = event.lineOffset;
 		final int length = event.lineText.length();
 
@@ -104,7 +76,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 		// find the first overlapping position
 		while (left < right) {
-
 			mid = (left + right) / 2;
 			position = positions[mid];
 			if (rangeEnd < position.getOffset()) {
@@ -122,7 +93,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			} else {
 				left = right = mid;
 			}
-
 		}
 
 		int index = left - 1;
@@ -136,7 +106,26 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			}
 		}
 		index++;
-		return index;
+		position = positions[index];
+		boolean found = false;
+
+		// process positions that overlap with the current line
+		while (index < positions.length && position.getOffset() < rangeEnd) {
+
+			((AbstractStyledPosition) position).overrideStyleRange(styles, offset, length, foregroundColor,
+					backgroundColor);
+
+			found = true;
+			index++;
+			if (index < positions.length) {
+				position = positions[index];
+			}
+		}
+
+		// update event styles if found an overlapping position
+		if (found) {
+			event.styles = styles.toArray(new StyleRange[0]);
+		}
 	}
 
 	private void updatePositionCache() {
@@ -158,14 +147,9 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		// In such case, store the incomplete sequence and remove it from the
 		// text.
 		// Reuse the incomplete sequence to process the next text
-		text = incompleteEscapeSequence + text;
-		offset -= incompleteEscapeSequence.length();
-
-		endMatcher.reset(text);
-		if (endMatcher.find()) {
-			incompleteEscapeSequence = endMatcher.group();
-			text = text.substring(0, text.length() - incompleteEscapeSequence.length());
-		} else {
+		if (!incompleteEscapeSequence.isEmpty()) {
+			text = incompleteEscapeSequence + text;
+			offset -= incompleteEscapeSequence.length();
 			incompleteEscapeSequence = "";
 		}
 
@@ -186,6 +170,13 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 							new StyledPosition(escapeOffet + offset, start - escapeOffet, attributes));
 				}
 
+				// store the incomplete escape sequence if any
+				if (matcher.hitEnd()) {
+					incompleteEscapeSequence = group;
+					return;
+				}
+
+				// complete escape sequence
 				// add a position to hide the escape code
 				document.addPosition(PARTITION_NAME, new EscapeCodePosition(start + offset, group.length()));
 
@@ -194,7 +185,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 				// update the offset
 				escapeOffet = matcher.end();
-
 			}
 
 			// add a position between the last escape code (or from the beginning) and the
@@ -250,13 +240,12 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	public boolean documentChanged(DocumentEvent event) {
 
 		if (!PreferenceUtils.isPrettyConsoleEnabled()) {
-
+			// disable this partitioner
 			if (enable) {
 				disconnect();
 			}
-		}
-
-		else if (!enable) {
+		} else if (!enable) {
+			// re-enable this partitioner
 			doConnect();
 		} else {
 			// adapt existing positions (we are interested only by remove events)
@@ -274,9 +263,8 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 					positionUpdater.update(event);
 				}
 			}
-
+			// handle new text
 			update(event.getOffset(), event.getText());
-
 			updatePositionCache();
 		}
 		return false;
