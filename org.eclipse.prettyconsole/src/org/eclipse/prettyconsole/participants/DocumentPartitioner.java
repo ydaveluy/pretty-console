@@ -5,30 +5,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 
-import org.eclipse.core.runtime.ILog;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Platform;
-import org.eclipse.core.runtime.Status;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.BadPositionCategoryException;
-import org.eclipse.jface.text.DefaultPositionUpdater;
 import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IDocumentPartitioner;
+import org.eclipse.jface.text.IPositionUpdater;
 import org.eclipse.jface.text.ITypedRegion;
-import org.eclipse.jface.text.Position;
-import org.eclipse.prettyconsole.PrettyConsoleActivator;
 import org.eclipse.prettyconsole.PrettyConsoleUtils;
 import org.eclipse.prettyconsole.preferences.PreferenceUtils;
 import org.eclipse.prettyconsole.utils.StyleAttribute;
 import org.eclipse.swt.custom.LineStyleEvent;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.osgi.framework.FrameworkUtil;
 
-public class DocumentPartitioner implements IDocumentPartitioner {
+public class DocumentPartitioner implements IDocumentPartitioner, IPositionUpdater {
 
-	private static final ILog LOGGER = Platform.getLog(FrameworkUtil.getBundle(DocumentPartitioner.class));
 	// store the last processed attributes
 	private StyleAttribute attributes = StyleAttribute.DEFAULT;
 	// the matcher used to find escape sequences
@@ -38,13 +28,11 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 	public static final String PARTITION_NAME = "pretty_console";
 
-	private final DefaultPositionUpdater positionUpdater = new DefaultPositionUpdater(PARTITION_NAME);
-
 	private boolean enable;
 	private IDocument document;
 
-	// cache the document positions
-	private Position[] positions = {};
+	// the styled positions
+	private final List<AbstractStyledPosition> positions = new ArrayList<>();
 
 	// Style list
 	final List<StyleRange> styles = new ArrayList<>();
@@ -52,7 +40,7 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	public void updateEventStyles(LineStyleEvent event, Color foregroundColor, Color backgroundColor) {
 
 		// no position means nothing to do
-		if (positions.length == 0 || event.lineText == null || event.lineText.isEmpty()) {
+		if (positions.isEmpty() || event.lineText == null || event.lineText.isEmpty()) {
 			return;
 		}
 
@@ -68,15 +56,15 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 		final int rangeEnd = offset + length;
 		int left = 0;
-		int right = positions.length - 1;
+		int right = positions.size() - 1;
 
 		int mid;
-		Position position;
+		AbstractStyledPosition position;
 
 		// find the first overlapping position
 		while (left < right) {
 			mid = (left + right) / 2;
-			position = positions[mid];
+			position = positions.get(mid);
 			if (rangeEnd < position.getOffset()) {
 				if (left == mid) {
 					right = left;
@@ -96,28 +84,27 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 
 		int index = left - 1;
 		if (index >= 0) {
-			position = positions[index];
+			position = positions.get(index);
 			while (index >= 0 && position.getOffset() + position.getLength() > offset) {
 				index--;
 				if (index > 0) {
-					position = positions[index];
+					position = positions.get(index);
 				}
 			}
 		}
 		index++;
-		position = positions[index];
+		position = positions.get(index);
 		boolean found = false;
 
 		// process positions that overlap with the current line
-		while (index < positions.length && position.getOffset() < rangeEnd) {
+		while (index < positions.size() && position.getOffset() < rangeEnd) {
 
-			((AbstractStyledPosition) position).overrideStyleRange(styles, offset, length, foregroundColor,
-					backgroundColor);
+			position.overrideStyleRange(styles, offset, length, foregroundColor, backgroundColor);
 
 			found = true;
 			index++;
-			if (index < positions.length) {
-				position = positions[index];
+			if (index < positions.size()) {
+				position = positions.get(index);
 			}
 		}
 
@@ -127,15 +114,6 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		}
 
 		styles.clear();
-	}
-
-	private void updatePositionCache() {
-		// update the cached positions
-		try {
-			positions = document.getPositions(PARTITION_NAME);
-		} catch (final BadPositionCategoryException e) {
-			LOGGER.log(new Status(IStatus.ERROR, PrettyConsoleActivator.PLUGIN_ID, e.getMessage()));
-		}
 	}
 
 	protected void update(int offset, String text) {
@@ -155,66 +133,59 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		}
 
 		matcher.reset(text);
-		try {
 
-			int start = 0;
+		int start = 0;
 
-			// find all escapes codes in the appended text and compute the new positions
-			while (matcher.find()) {
-				final int mstart = matcher.start();
+		// find all escapes codes in the appended text and compute the new positions
+		while (matcher.find()) {
+			final int mstart = matcher.start();
 
-				// add a position between two escape codes (or from the beginning to an escape
-				// code)
-				// add this position only if the attributes is of interest (different from
-				// default)
-				if (attributes != StyleAttribute.DEFAULT && mstart > start) {
-					document.addPosition(PARTITION_NAME,
-							new StyledPosition(start + offset, mstart - start, attributes));
-				}
-				final String group = matcher.group();
+			// add a position between two escape codes (or from the beginning to an escape
+			// code)
+			// add this position only if the attributes is of interest (different from
+			// default)
+			if (attributes != StyleAttribute.DEFAULT && mstart > start) {
+				// document.addPosition(PARTITION_NAME,
+				// new StyledPosition(start + offset, mstart - start, attributes));
+				positions.add(new StyledPosition(start + offset, mstart - start, attributes));
+			}
+			final String group = matcher.group();
 
-				// store the incomplete escape sequence if any
-				if (matcher.hitEnd()) {
-					incompleteEscapeSequence = group;
-					return;
-				}
-
-				// complete escape sequence
-				// add a position to hide the escape code
-				document.addPosition(PARTITION_NAME, new EscapeCodePosition(mstart + offset, group.length()));
-
-				// update the attributes
-				attributes = attributes.apply(group);
-
-				// update the start offset
-				start = matcher.end();
+			// store the incomplete escape sequence if any
+			if (matcher.hitEnd()) {
+				incompleteEscapeSequence = group;
+				return;
 			}
 
-			// add a position between the last escape code (or from the beginning) and the
-			// end of the appended text
-			// add this position only if the attribute is of interest
-			if (attributes != StyleAttribute.DEFAULT && text.length() > start) {
-				document.addPosition(PARTITION_NAME,
-						new StyledPosition(start + offset, text.length() - start, attributes));
-			}
+			// complete escape sequence
+			// add a position to hide the escape code
+			positions.add(new EscapeCodePosition(mstart + offset, group.length()));
 
-		} catch (BadPositionCategoryException | BadLocationException e) {
-			LOGGER.log(new Status(IStatus.ERROR, PrettyConsoleActivator.PLUGIN_ID, e.getMessage()));
+			// update the attributes
+			attributes = attributes.apply(group);
 
+			// update the start offset
+			start = matcher.end();
+		}
+
+		// add a position between the last escape code (or from the beginning) and the
+		// end of the appended text
+		// add this position only if the attribute is of interest
+		if (attributes != StyleAttribute.DEFAULT && text.length() > start) {
+			positions.add(new StyledPosition(start + offset, text.length() - start, attributes));
 		}
 
 	}
 
 	private void doConnect() {
 
-		document.addPositionCategory(PARTITION_NAME);
-
 		attributes = StyleAttribute.DEFAULT;
 		incompleteEscapeSequence = "";
 		enable = true;
+
+		positions.clear();
 		// initialize the positions
 		update(0, document.get());
-		updatePositionCache();
 	}
 
 	@Override
@@ -226,12 +197,7 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	@Override
 	public void disconnect() {
 		enable = false;
-		try {
-			document.removePositionCategory(PARTITION_NAME);
-		} catch (final BadPositionCategoryException e) {
-			LOGGER.log(new Status(IStatus.ERROR, PrettyConsoleActivator.PLUGIN_ID, e.getMessage()));
-		}
-		positions = new Position[0];
+		positions.clear();
 	}
 
 	@Override
@@ -247,28 +213,56 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			if (enable) {
 				disconnect();
 			}
-		} else if (!enable) {
-			// re-enable this partitioner
+		}
+		// re-enable this partitioner
+		else if (!enable) {
 			doConnect();
-		} else {
-			// adapt existing positions (we are interested only by remove events)
-			if (event.getOffset() == 0) {
-				// when the document is empty, remove all positions together
-				// to improve performances during console clear
-				if (document.getLength() == 0) {
-					try {
-						document.removePositionCategory(PARTITION_NAME);
-						document.addPositionCategory(PARTITION_NAME);
-					} catch (final BadPositionCategoryException e) {
-						LOGGER.log(new Status(IStatus.ERROR, PrettyConsoleActivator.PLUGIN_ID, e.getMessage()));
+		}
+		// adapt existing positions (we are interested only by remove events)
+		else if (event.getOffset() == 0) {
+
+			final int fLength = event.getLength();
+
+			// remove all the starting positions
+			positions.removeIf(p -> p.offset + p.length < fLength);
+
+			if (fLength > 0) {
+
+				final int yoursEnd = fLength - 1;
+				// update remaining positions
+				positions.parallelStream().forEach(position -> {
+
+					final int myEnd = position.offset + position.length - 1;
+
+					if (position.offset <= 0) {
+
+						if (yoursEnd <= myEnd) {
+							position.length -= fLength;
+						} else {
+							position.length -= myEnd + 1;
+						}
+
+					} else if (yoursEnd < position.offset) {
+						position.offset -= fLength;
+					} else {
+						position.offset -= position.offset;
+						position.length -= fLength - position.offset;
 					}
-				} else {
-					positionUpdater.update(event);
-				}
+
+					// validate position to allowed values
+					if (position.offset < 0) {
+						position.offset = 0;
+					}
+
+					if (position.length < 0) {
+						position.length = 0;
+					}
+				});
 			}
-			// handle new text
+		}
+		// handle new text
+		else {
 			update(event.getOffset(), event.getText());
-			updatePositionCache();
 		}
 		return false;
 	}
@@ -291,6 +285,50 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 	@Override
 	public ITypedRegion getPartition(int offset) {
 		return null;
+	}
+
+	@Override
+	public void update(DocumentEvent event) {
+
+		final int fLength = event.getLength();
+
+		if (fLength > 0) {
+
+			// remove all the starting positions
+			positions.removeIf(p -> p.offset + p.length < fLength);
+
+			final int yoursEnd = fLength - 1;
+			// update remaining positions
+			positions.parallelStream().forEach(position -> {
+
+				final int myEnd = position.offset + position.length - 1;
+
+				if (position.offset <= 0) {
+
+					if (yoursEnd <= myEnd) {
+						position.length -= fLength;
+					} else {
+						position.length -= myEnd + 1;
+					}
+
+				} else if (yoursEnd < position.offset) {
+					position.offset -= fLength;
+				} else {
+					position.offset -= position.offset;
+					position.length -= fLength - position.offset;
+				}
+
+				// validate position to allowed values
+				if (position.offset < 0) {
+					position.offset = 0;
+				}
+
+				if (position.length < 0) {
+					position.length = 0;
+				}
+			});
+
+		}
 	}
 
 }
