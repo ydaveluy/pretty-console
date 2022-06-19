@@ -31,9 +31,8 @@ import static org.eclipse.prettyconsole.utils.Commands.COMMAND_HICOLOR_FOREGROUN
 import static org.eclipse.prettyconsole.utils.Commands.COMMAND_HICOLOR_FOREGROUND_FIRST;
 import static org.eclipse.prettyconsole.utils.Commands.COMMAND_HICOLOR_FOREGROUND_LAST;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.stream.Stream;
 
 import org.eclipse.prettyconsole.PrettyConsoleUtils;
 import org.eclipse.swt.SWT;
@@ -75,7 +74,7 @@ public class StyleAttribute {
 	}
 
 	private boolean isDefault() {
-		return background == null && foreground == null && style == SWT.NORMAL;
+		return foreground == null && style == SWT.NORMAL && background == null;
 
 	}
 
@@ -176,41 +175,27 @@ public class StyleAttribute {
 		final char code = ansiCode.charAt(ansiCode.length() - 1);
 		if (code == PrettyConsoleUtils.ESCAPE_SGR) {
 
-			final StyleAttribute current = new StyleAttribute(this);
+			final StyleAttribute newAttribute = new StyleAttribute(this);
 
 			// Select Graphic Rendition (SGR) escape sequence
-			current.interpretCommand(parseSemicolonSeparatedIntList(ansiCode.substring(2, ansiCode.length() - 1)));
-			if (current.isDefault()) {
+			newAttribute.interpretCommand(ansiCode.substring(2, ansiCode.length() - 1));
+			if (newAttribute.isDefault()) {
 				return StyleAttribute.DEFAULT;
 			}
 
-			return current;
+			return newAttribute;
 		}
 		return this;
 	}
 
-	// Takes a string that looks like this: int [ ';' int] and returns a list of the
-	// integers
-	private static List<Integer> parseSemicolonSeparatedIntList(String text) {
-		final List<Integer> result = new ArrayList<>(10);
-		int crtValue = 0;
-		for (int i = 0; i < text.length(); i++) {
-			final char ch = text.charAt(i);
-			if (ch >= '0' && ch <= '9') {
-				crtValue *= 10;
-				crtValue += ch - '0';
-			} else {
-				result.add(crtValue);
-				crtValue = 0;
-			}
+	private void interpretCommand(String text) {
+
+		if (text.isEmpty()) {
+			reset();
+			return;
 		}
-		result.add(crtValue);
-		return result;
-	}
 
-	private void interpretCommand(List<Integer> nCommands) {
-
-		final Iterator<Integer> iter = nCommands.iterator();
+		final Iterator<Integer> iter = Stream.of(text.split(";")).map(Integer::parseInt).iterator();
 		while (iter.hasNext()) {
 			final int nCmd = iter.next();
 			switch (nCmd) {
