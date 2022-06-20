@@ -242,9 +242,9 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 			}
 		}
 		// handle new text
-		else {
-			update(event.getOffset(), event.getText());
-		}
+		// else {
+		update(event.getOffset(), event.getText());
+		// }
 		return false;
 	}
 
