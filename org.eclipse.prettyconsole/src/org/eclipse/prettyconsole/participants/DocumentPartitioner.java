@@ -211,40 +211,41 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		else if (!enable) {
 			doConnect();
 		}
-		// adapt existing positions (we are interested only by remove events)
-		else if (event.getOffset() == 0) {
 
-			final int length = event.getLength();
+		else {
+			// adapt existing positions (we are interested only by remove events)
+			if (event.getOffset() == 0) {
 
-			// remove all the starting positions
-			positions.removeIf(p -> p.offset + p.length < length);
+				final int length = event.getLength();
 
-			if (length > 0) {
+				// remove all the starting positions
+				positions.removeIf(p -> p.offset + p.length < length);
 
-				// update remaining positions
-				positions.parallelStream().forEach(p -> {
+				if (length > 0) {
 
-					if (p.offset > length) {
-						// position after removed region
-						// position: _________PPPPP
-						// remove : xxxx
-						// result : _____PPPPP
-						p.offset -= length;
-					} else {
-						// position overlap with removed region
-						// position: __PPPPP__
-						// remove : xxxx
-						// result : PPP__
-						p.length -= length - p.offset;
-						p.offset = 0;
-					}
-				});
+					// update remaining positions
+					positions.parallelStream().forEach(p -> {
+
+						if (p.offset > length) {
+							// position after removed region
+							// position: _________PPPPP
+							// remove : xxxx
+							// result : _____PPPPP
+							p.offset -= length;
+						} else {
+							// position overlap with removed region
+							// position: __PPPPP__
+							// remove : xxxx
+							// result : PPP__
+							p.length -= length - p.offset;
+							p.offset = 0;
+						}
+					});
+				}
 			}
+			// handle new text
+			update(event.getOffset(), event.getText());
 		}
-		// handle new text
-		// else {
-		update(event.getOffset(), event.getText());
-		// }
 		return false;
 	}
 
