@@ -2,6 +2,7 @@ Pretty Console
 ===================================
 
 Eclipse plugin that handle ANSI escape sequences to color the Eclipse console output.
+This plugin is a fork of `https://github.com/mihnita/ansi-econsole`
 
 **Marketplace install:**
 * In Eclipse select “Help” -> “Eclipse Marketplace...” in the “Find” tab search for “ANSI”<br>

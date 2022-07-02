@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2012-2022 Mihai Nita and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+ * which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.eclipse.prettyconsole.participants;
 
 import java.util.ArrayList;
@@ -12,9 +22,12 @@ import org.eclipse.jface.text.ITypedRegion;
 import org.eclipse.prettyconsole.PrettyConsoleUtils;
 import org.eclipse.prettyconsole.preferences.PreferenceUtils;
 import org.eclipse.prettyconsole.utils.StyleAttribute;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.LineStyleEvent;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.GlyphMetrics;
 
 public class DocumentPartitioner implements IDocumentPartitioner {
 
@@ -269,4 +282,180 @@ public class DocumentPartitioner implements IDocumentPartitioner {
 		return null;
 	}
 
+	private static abstract class AbstractStyledPosition extends org.eclipse.jface.text.Position {
+
+		protected AbstractStyledPosition(int offset, int length) {
+			super(offset, length);
+		}
+
+		protected abstract StyleRange getStyle(int offset, int length, Color foregroundColor, Color backgroundColor);
+
+		public void overrideStyleRange(List<StyleRange> ranges, int offset, int length, Color foregroundColor,
+				Color backgroundColor) {
+
+			final int overrideStart = Math.max(offset, this.offset);
+			final int overrideEnd = Math.min(offset + length, this.offset + this.length);
+			int insertIndex = ranges.size();
+			for (int i = ranges.size() - 1; i >= 0; i--) {
+				final StyleRange existingRange = ranges.get(i);
+				final int existingStart = existingRange.start;
+				final int existingEnd = existingStart + existingRange.length;
+
+				// Find first position to insert where offset of new style is smaller then all
+				// offsets before. This way the list is still sorted by offset after insert if
+				// it was sorted before and it will not fail if list was not sorted.
+				if (overrideStart <= existingStart) {
+					insertIndex = i;
+				}
+
+				// adjust the existing style if required
+				if (overrideStart <= existingStart) { // new style starts before or with existing
+					if (overrideEnd < existingStart) {
+						// new style lies before existing style. No overlapping.
+						// new style: ++++_________
+						// existing : ________=====
+						// . result : ++++____=====
+						// nothing to do
+					} else if (overrideEnd < existingEnd) {
+						// new style overlaps start of existing.
+						// new style: ++++++++_____
+						// existing : _____========
+						// . result : ++++++++=====
+						final int overlap = overrideEnd - existingStart;
+						existingRange.start += overlap;
+						existingRange.length -= overlap;
+						// TODO combine overlapping part
+					} else {
+						// new style completely overlaps existing.
+						// new style: ___++++++++++
+						// existing : ___======____
+						// . result : ___++++++++++
+						ranges.remove(i);
+
+						if (existingRange.foreground != null) {
+							foregroundColor = existingRange.foreground;
+						}
+						if (existingRange.background != null) {
+							backgroundColor = existingRange.background;
+						}
+
+					}
+				} else if (existingEnd < overrideStart) {
+					// new style lies after existing style. No overlapping.
+					// new style: _________++++
+					// existing : =====________
+					// . result : =====____++++
+					// nothing to do
+				} else if (overrideEnd >= existingEnd) {
+					// new style overlaps end of existing.
+					// new style: _____++++++++
+					// existing : ========_____
+					// . result : =====++++++++
+					existingRange.length -= existingEnd - overrideStart;
+				} else {
+					// new style lies inside existing style but not overrides all of it
+					// (and does not touch first or last offset of existing)
+					// new style: ____+++++____
+					// existing : =============
+					// . result : ====+++++====
+					final StyleRange clonedRange = (StyleRange) existingRange.clone();
+					existingRange.length = overrideStart - existingStart;
+					clonedRange.start = overrideEnd;
+					clonedRange.length = existingEnd - overrideEnd;
+					ranges.add(i + 1, clonedRange);
+				}
+
+				if (existingRange.foreground != null) {
+					foregroundColor = existingRange.foreground;
+				}
+				if (existingRange.background != null) {
+					backgroundColor = existingRange.background;
+				}
+
+			}
+			ranges.add(insertIndex,
+					getStyle(overrideStart, overrideEnd - overrideStart, foregroundColor, backgroundColor));
+		}
+	}
+
+	private static class StyledPosition extends AbstractStyledPosition {
+
+		// StyleRange for the current position
+		protected final StyleAttribute attributes;
+
+		/**
+		 * Build a position with a specific style
+		 *
+		 * @param offset     the position offset
+		 * @param length     the position length
+		 * @param attributes the style
+		 */
+		public StyledPosition(int offset, int length, StyleAttribute attributes) {
+			super(offset, length);
+			this.attributes = attributes;
+
+		}
+
+		/**
+		 * Get the Style of the position
+		 *
+		 * @return the Style of the position
+		 */
+		@Override
+		public StyleRange getStyle(int offset, int length, Color foregroundColor, Color backgroundColor) {
+
+			final StyleRange style = new StyleRange(offset, length, foregroundColor, backgroundColor);
+
+			// update the style with the attributes
+			StyleAttribute.updateRangeStyle(style, attributes);
+
+			return style;
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			if (other instanceof StyledPosition) {
+				final StyledPosition rp = (StyledPosition) other;
+				return attributes.equals(rp.attributes) && super.equals(other);
+			}
+			return false;
+		}
+
+		@Override
+		public int hashCode() {
+			return super.hashCode() ^ attributes.hashCode();
+		}
+
+	}
+
+	private static class EscapeCodePosition extends AbstractStyledPosition {
+		private static final Font MONO_FONT = new Font(null, "Monospaced", 6, SWT.NORMAL);
+		private static final GlyphMetrics HIDE_CODE = new GlyphMetrics(0, 0, 0);
+
+		/**
+		 * Build an escape code position
+		 *
+		 * @param offset the position offset
+		 * @param length the position length
+		 */
+		protected EscapeCodePosition(int offset, int length) {
+			super(offset, length);
+		}
+
+		/**
+		 * update the style according to preferences
+		 */
+		@Override
+		protected StyleRange getStyle(int offset, int length, Color foregroundColor, Color backgroundColor) {
+
+			final StyleRange style = new StyleRange(offset, length, null, null);
+			// update the the Style according to current preferences
+			if (PreferenceUtils.showEscapeCodes()) {
+				style.font = MONO_FONT; // Show the codes in small, monospaced font
+			} else {
+				style.metrics = HIDE_CODE; // Hide the codes
+			}
+			return style;
+		}
+	}
 }

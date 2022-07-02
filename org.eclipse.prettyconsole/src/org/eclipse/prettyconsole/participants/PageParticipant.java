@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2012-2022 Mihai Nita and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+ * which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.eclipse.prettyconsole.participants;
 
 import org.eclipse.jface.text.IDocument;
@@ -7,6 +17,7 @@ import org.eclipse.swt.custom.ST;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.TypedListener;
+import org.eclipse.swt.widgets.Widget;
 import org.eclipse.ui.console.IConsole;
 import org.eclipse.ui.console.IConsolePageParticipant;
 import org.eclipse.ui.part.IPageBookViewPage;
@@ -46,7 +57,7 @@ public class PageParticipant implements IConsolePageParticipant {
 	}
 
 	// Find the document associated with the viewer
-	static IDocument getDocument(StyledText viewer) {
+	static IDocument getDocument(Widget viewer) {
 		for (final Listener listener : viewer.getListeners(ST.LineGetStyle)) {
 			if (listener instanceof TypedListener) {
 				final Object evenListener = ((TypedListener) listener).getEventListener();
